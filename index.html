@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Purple Map: tabuleiro jogável da comunidade He4rt Developers. Role os dados, aprenda techs e complete trilhas.">
+<title>Purple Map</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap">
+<style>
+
+/* Layout: tabuleiro 10×10 (36 casas, cantos maiores) com o painel de jogo no centro; abaixo de 760px vira trilha em lista. */
+:root {
+  /* Tokens da versão acessível do He4rt Design System */
+  --primary: #782bf1; --secondary: #9828bd;
+  --bg: #fbfbff; --dp1: #f7f8fc; --dp2: #f2f4fa; --dp3: #edeff7;
+  --text-high: #09090a; --text-medium: #4f4f4f; --text-low: #636363;
+  --line: #d9dae3; --outline-ui: #8a8a92; --board-edge: #09090a;
+  --board-bg: #e9defd; --card: #fdfdfd; --card-edge: #09090a; --token-ring: #fdfdfd;
+  --pm-mark: #8046fd; --pm-type: #071950;
+  --primary-ink: #6c0eba; --focus: #782bf1;
+  --primary-soft: rgba(120, 43, 241, .07); --primary-line: rgba(120, 43, 241, .32);
+  --h-ok: #007500; --h-warn: #775b00; --h-err: #c40017; --h-info: #057693;
+  --font-primary: 'Satoshi', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-code: 'Fira Code', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --r-sm: 8px; --r-md: 16px; --r-lg: 24px; --r-pill: 999px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #09090a; --dp1: #0f0f10; --dp2: #131314; --dp3: #181819;
+    --text-high: #fdfdfd; --text-medium: #9c9c9c; --text-low: #8e8e8f;
+    --line: #2c2c2d; --outline-ui: #6b6b70; --board-edge: #6b6b70;
+    --board-bg: #1d1233; --card: #131314; --card-edge: #b552ff; --token-ring: #fdfdfd;
+    --pm-mark: #9a6bff; --pm-type: #fdfdfd;
+    --primary-ink: #cd6aff; --focus: #b552ff;
+    --primary-soft: rgba(120, 43, 241, .14); --primary-line: rgba(152, 82, 255, .45);
+    --h-ok: #00cd0f; --h-warn: #d4ac1a; --h-err: #ff7263; --h-info: #048ba8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #09090a; --dp1: #0f0f10; --dp2: #131314; --dp3: #181819;
+  --text-high: #fdfdfd; --text-medium: #9c9c9c; --text-low: #8e8e8f;
+  --line: #2c2c2d; --outline-ui: #6b6b70; --board-edge: #6b6b70;
+    --board-bg: #1d1233; --card: #131314; --card-edge: #b552ff; --token-ring: #fdfdfd;
+    --pm-mark: #9a6bff; --pm-type: #fdfdfd;
+  --primary-ink: #cd6aff; --focus: #b552ff;
+  --primary-soft: rgba(120, 43, 241, .14); --primary-line: rgba(152, 82, 255, .45);
+  --h-ok: #00cd0f; --h-warn: #d4ac1a; --h-err: #ff7263; --h-info: #048ba8;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text-high); font-family: var(--font-primary); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { line-height: 1.15; text-wrap: balance; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; animation: none !important; } }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+code, .mono { font-family: var(--font-code); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 24px; }
+@media (max-width: 520px) { .wrap { padding-inline: 16px; } }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: 16px; top: -100px; z-index: 30; background: var(--text-high); color: var(--bg); padding: 10px 16px; border-radius: var(--r-sm); font-weight: 700; text-decoration: none; }
+.skip:focus { top: calc(12px + env(safe-area-inset-top, 0px)); }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-block: 20px; }
+.brandmark { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.brandmark .pm-logo { display: block; width: auto; height: 34px; max-width: 100%; }
+@media (max-width: 400px) { .brandmark .pm-logo { height: 28px; } }
+.top nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.top nav a { font-size: 14px; font-weight: 500; color: var(--text-medium); text-decoration: none; padding: 6px 10px; border-radius: var(--r-sm); }
+.top nav a:hover { color: var(--text-high); background: var(--primary-soft); }
+
+.top nav { align-items: center; }
+.theme-btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 600; min-height: 36px; padding: 6px 12px; border-radius: var(--r-pill); border: 2px solid var(--card-edge); background: var(--card); color: var(--text-high); box-shadow: 2px 2px 0 var(--card-edge); cursor: pointer; }
+.theme-btn svg { width: 18px; height: 18px; }
+.theme-btn:hover { background: var(--primary-soft); }
+
+/* ===== Tabuleiro: cartões com selo, contorno e sombra sólida ===== */
+.board-wrap { padding-block: 8px 48px; }
+.board {
+  list-style: none; margin: 0 auto; padding: 22px 14px 14px;
+  display: grid; column-gap: 10px; row-gap: 18px;
+  grid-template-columns: 1.4fr repeat(8, 1fr) 1.4fr;
+  grid-template-rows: minmax(124px, auto) repeat(8, minmax(80px, auto)) minmax(124px, auto);
+  width: 100%; max-width: 1000px;
+  background: var(--board-bg); border-radius: var(--r-lg);
+}
+.space {
+  position: relative; display: flex; min-width: 0; min-height: 0;
+  background: var(--card); border: 2px solid var(--card-edge); border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--card-edge);
+  transition: transform .15s, box-shadow .15s;
+}
+.space > button {
+  all: unset; box-sizing: border-box; cursor: pointer; flex: 1; min-width: 0; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 16px 6px 8px; text-align: center; font-size: 12px; line-height: 1.25;
+}
+.space > button:focus-visible { outline: 3px solid var(--focus); outline-offset: 5px; }
+@media (prefers-reduced-motion: no-preference) {
+  .space:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--card-edge); }
+}
+.tab {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 1;
+  padding: 2px 10px; border-radius: var(--r-pill); border: 2px solid var(--card-edge);
+  font-size: 12px; font-weight: 700; letter-spacing: .05em; line-height: 1.3; white-space: nowrap;
+}
+.tab-neutral { background: var(--card-edge); color: var(--card); }
+.s-name { font-weight: 700; font-size: 13px; overflow-wrap: break-word; hyphens: auto; color: var(--text-high); }
+.s-price { font-family: var(--font-code); font-size: 12px; color: var(--text-low); font-variant-numeric: tabular-nums; }
+.s-group { display: none; }
+.s-icon { width: 28px; height: 28px; color: var(--primary-ink); flex: none; }
+.s-icon.big { width: 36px; height: 36px; }
+.s-q { font-family: var(--font-code); font-weight: 600; font-size: 28px; line-height: 1; color: var(--primary-ink); }
+.owned-mark { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--h-ok); color: var(--card); display: grid; place-items: center; }
+.owned-mark svg { width: 16px; height: 16px; }
+.space.here { box-shadow: 4px 4px 0 var(--card-edge), 0 0 0 4px var(--board-bg), 0 0 0 7px var(--focus); }
+.token {
+  position: absolute; right: -8px; bottom: -8px; width: 30px; height: 30px; border-radius: 50%; z-index: 2;
+  background: #09090a; color: #fdfdfd; border: 2px solid var(--token-ring); box-shadow: 0 0 0 2px #09090a;
+  display: grid; place-items: center; pointer-events: none; animation: hop .18s ease-out;
+}
+.token svg { width: 18px; height: 13px; }
+@keyframes hop { from { transform: translateY(-6px) scale(1.08); } to { transform: none; } }
+
+
+/* Cantos: cartões com o gradiente da marca */
+.space.corner { background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+.space.corner > button { padding: 12px; gap: 6px; }
+.corner .s-name { font-size: 15px; color: #fdfdfd; }
+.corner .s-sub { font-size: 12px; color: #f3ecff; }
+.corner .s-icon { color: #fdfdfd; }
+.hello { font-family: var(--font-code); font-size: 12px; font-weight: 500; color: #fdfdfd; }
+.arrow-go { width: 46px; height: 24px; color: #fdfdfd; }
+.review-split { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; align-items: center; }
+.review-box { border: 2px solid #fdfdfd; border-radius: 8px; padding: 6px 4px; font-size: 12px; font-weight: 700; color: #fdfdfd; display: grid; justify-items: center; gap: 2px; }
+.review-box svg { width: 22px; height: 22px; }
+
+/* Painel central */
+.panel {
+  grid-area: 2 / 2 / 10 / 10; background: var(--bg); position: relative; overflow: auto;
+  display: flex; flex-direction: column; gap: 14px; padding: clamp(14px, 2.4vw, 28px);
+}
+.panel-bg { position: absolute; inset: 0; pointer-events: none; opacity: .5; overflow: hidden; }
+.panel-bg svg { position: absolute; right: -12%; bottom: -14%; width: 70%; }
+.panel > *:not(.panel-bg) { position: relative; }
+.title-plate {
+  align-self: center; display: flex; align-items: center; gap: 14px; padding: 10px 28px;
+  border-radius: var(--r-lg); background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fdfdfd;
+  box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px var(--primary);
+}
+.title-plate svg { width: 40px; height: 34px; flex: none; }
+.title-plate h1 { margin: 0; font-size: clamp(1.5rem, 3.4vw, 2.5rem); letter-spacing: -.035em; font-weight: 700; }
+.tagline { margin: 0; text-align: center; color: var(--text-medium); font-size: 14px; }
+.tagline b { color: var(--text-high); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; }
+.stats div { background: var(--dp2); border-radius: var(--r-sm); padding: 8px 10px; min-width: 0; }
+.stats dt { font-size: 12px; font-weight: 600; color: var(--text-medium); letter-spacing: .02em; }
+.stats dd { margin: 0; font-weight: 700; font-size: 1.125rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.25; }
+.stats dd.xp { color: var(--primary-ink); font-size: 1.375rem; }
+.playrow { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.dice { display: flex; gap: 8px; }
+.die { width: 48px; height: 48px; border-radius: 10px; background: var(--bg); border: 2px solid var(--text-high); display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 6px; }
+.die i { width: 8px; height: 8px; border-radius: 50%; place-self: center; }
+.die i.on { background: var(--text-high); }
+.die.rolling { animation: shake .3s; }
+.die-empty { display: grid; place-items: center; font-family: var(--font-code); font-size: 20px; font-weight: 600; color: var(--text-low); border-style: dashed; }
+@keyframes shake { 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: inherit; font-weight: 600; font-size: 15px; min-height: 44px; padding: 10px 18px; border-radius: 10px; cursor: pointer; border: 1px solid transparent; transition: transform .2s, background .2s, border-color .2s; }
+.btn svg { width: 18px; height: 18px; }
+.btn-solid { background: linear-gradient(to bottom right, var(--primary), var(--secondary)); color: #fdfdfd; }
+.btn-outline { background: transparent; color: var(--text-high); border-color: var(--outline-ui); }
+.btn-outline:hover { border-color: var(--primary); background: var(--primary-soft); }
+.btn-small { min-height: 36px; padding: 6px 12px; font-size: 14px; font-weight: 500; }
+.btn[disabled] { opacity: .6; cursor: not-allowed; }
+@media (prefers-reduced-motion: no-preference) { .btn:not([disabled]):hover { transform: scale(1.02); } .btn:not([disabled]):active { transform: scale(.96); } }
+
+.msg { border-radius: var(--r-sm); border: 1px solid var(--line); border-left: 4px solid var(--tone, var(--h-info)); background: var(--dp1); padding: 12px 14px; display: grid; grid-template-columns: 22px 1fr; gap: 4px 10px; align-items: start; }
+.msg svg { width: 22px; height: 22px; color: var(--tone, var(--h-info)); grid-row: span 2; }
+.msg b { font-size: 15px; }
+.msg p { margin: 0; font-size: 14px; color: var(--text-medium); }
+.msg.ok { --tone: var(--h-ok); } .msg.warn { --tone: var(--h-warn); } .msg.err { --tone: var(--h-err); } .msg.info { --tone: var(--h-info); }
+.card-face { margin-top: 6px; grid-column: 2; border: 1px dashed var(--primary-line); border-radius: var(--r-sm); padding: 8px 10px; font-size: 14px; }
+.card-face span { display: block; font-family: var(--font-code); font-size: 12px; color: var(--primary-ink); font-weight: 600; }
+.loghead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.loghead h2 { font-size: 14px; margin: 0; font-weight: 700; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--text-medium); }
+.log li { display: flex; gap: 8px; }
+.log li span { font-family: var(--font-code); font-size: 12px; color: var(--text-low); flex: none; min-width: 2.5em; }
+
+/* Painel como cartão maior */
+.panel { border: 2px solid var(--card-edge); border-radius: 18px; box-shadow: 6px 6px 0 var(--card-edge); margin: 4px 8px 8px 4px; }
+
+/* Lista (telas estreitas) */
+@media (max-width: 759px) {
+  .board { display: flex; flex-direction: column; gap: 22px; padding: 22px 14px 18px; border-radius: var(--r-md); }
+  .panel { order: -1; overflow: visible; margin: 0 4px 6px 0; }
+  .space > button, .space.corner > button { flex-direction: row; align-items: center; justify-content: flex-start; padding: 16px 44px 12px 14px; gap: 12px; text-align: left; min-height: 64px; }
+  .tab { left: 14px; transform: none; }
+  .s-group { display: block; font-size: 12px; color: var(--text-medium); }
+  .corner .s-group { color: #f3ecff; }
+  .s-text { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: center; flex: 1; min-width: 0; }
+  .s-text > :not(.s-price) { grid-column: 1; }
+  .s-price { grid-column: 2; grid-row: 1 / span 2; }
+  .corner .s-text { grid-template-columns: 1fr; }
+  .review-split, .hello, .arrow-go { display: none; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .panel-bg { display: none; }
+  .owned-mark { top: 50%; right: 12px; margin-top: -11px; }
+  .space.here .owned-mark { right: 44px; }
+  .token { top: 50%; bottom: auto; right: 10px; margin-top: -15px; }
+}
+@media (min-width: 760px) { .s-text { display: contents; } }
+
+/* Barra fixa de ações (celular) */
+.mbar { display: none; }
+@media (max-width: 759px) {
+  .mbar:not([hidden]) {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--card); border-top: 2px solid var(--card-edge);
+    box-shadow: 0 -6px 18px rgba(0, 0, 0, .18);
+  }
+  body.has-mbar { padding-bottom: 120px; }
+  .mbar-info { display: grid; min-width: 0; flex: 1 1 140px; }
+  .mbar-info b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mbar-info span { font-family: var(--font-code); font-size: 12px; color: var(--primary-ink); font-variant-numeric: tabular-nums; }
+  .mbar .actions { flex: 0 1 auto; justify-content: flex-end; }
+  .mbar .btn { min-height: 44px; padding: 8px 14px; font-size: 14px; }
+}
+
+/* Seções abaixo */
+section.info { padding-block: 48px; border-top: 1px solid var(--line); }
+.sec-head { display: grid; grid-template-columns: 220px 1fr; gap: 16px 48px; margin-bottom: 28px; }
+@media (max-width: 800px) { .sec-head { grid-template-columns: 1fr; } }
+.sec-label { font-family: var(--font-code); font-size: 12px; color: var(--primary-ink); letter-spacing: .04em; padding-top: 8px; }
+.sec-head h2 { font-size: clamp(1.5rem, 3vw, 2.25rem); letter-spacing: -.03em; margin: 0 0 8px; }
+.sec-head p { margin: 0; color: var(--text-medium); max-width: 62ch; }
+.trails { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 860px) { .trails { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .trails { grid-template-columns: 1fr; } }
+.trail { border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; background: var(--dp1); }
+.trail .bar { display: flex; align-items: center; height: 30px; padding-left: 14px; font-size: 12px; font-weight: 700; letter-spacing: .05em; border-bottom: 2px solid var(--card-edge); }
+.trail { border: 2px solid var(--card-edge) !important; box-shadow: 4px 4px 0 var(--card-edge); border-radius: 14px !important; background: var(--card) !important; }
+.trail div { padding: 12px 14px 14px; display: grid; gap: 4px; }
+.trail b { font-size: 1.0625rem; }
+.trail p { margin: 0; font-size: 14px; color: var(--text-medium); }
+.rules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (max-width: 760px) { .rules { grid-template-columns: 1fr; } }
+.rule { display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-md); }
+.rule svg { width: 28px; height: 28px; color: var(--primary-ink); }
+.rule b { display: block; }
+.rule p { margin: 0; font-size: 14px; color: var(--text-medium); }
+footer { padding-block: 28px; font-size: 13px; color: var(--text-low); border-top: 1px solid var(--line); }
+footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+footer a { color: var(--primary-ink); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="pm-mark" viewBox="0 0 58 42"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M1.78611 12.9662C0.310192 16.6208 -0.075977 20.6421 0.676494 24.5218C1.42887 28.4014 3.28611 31.9651 6.01319 34.7621C8.74026 37.5591 12.2149 39.4639 15.9974 40.2356C19.7802 41.0074 23.701 40.6112 27.2642 39.0975C30.8272 37.5838 33.8728 35.0202 36.0154 31.7314C36.0725 31.6436 36.129 31.5555 36.1847 31.4669C36.224 31.4045 36.2631 31.3416 36.3018 31.2786V40.6199H37.8018C41.6585 40.6199 45.4287 39.4469 48.6353 37.2492C51.8422 35.0518 54.3415 31.9281 55.8173 28.2735C57.2933 24.6191 57.6795 20.5978 56.927 16.7181C56.1746 12.8385 54.3175 9.27482 51.5904 6.47782C48.8632 3.68072 45.3886 1.77595 41.6061 1.00428C37.8233 0.232513 33.9025 0.628585 30.3393 2.14235C26.7763 3.65612 23.7308 6.21959 21.5881 9.50853C21.4907 9.65822 21.3952 9.8092 21.3017 9.96123V0.619946H19.8017C15.945 0.619946 12.1749 1.79295 8.96815 3.99059C5.76142 6.18813 3.26204 9.31172 1.78611 12.9662ZM18.3018 20.6199V3.76692C15.5678 4.02289 12.9307 4.97561 10.6349 6.54889C7.92143 8.4084 5.80665 11.0515 4.55778 14.1437C3.30891 17.2361 2.98215 20.6386 3.61881 23.9215C4.25548 27.2042 5.82698 30.2196 8.13447 32.5864C10.4421 34.9531 13.3821 36.5648 16.5828 37.2178C19.7835 37.8708 23.101 37.5356 26.1161 36.2548C29.0099 35.0254 31.5003 32.9776 33.2989 30.3542C31.9358 31.0179 30.411 31.3892 28.8018 31.3892C23.0029 31.3892 18.3018 26.5675 18.3018 20.6199ZM39.3017 37.4729V20.6199C39.3017 14.6723 34.6006 9.8507 28.8018 9.8507C27.1925 9.8507 25.6678 10.222 24.3046 10.8857C26.1032 8.2622 28.5936 6.21442 31.4875 4.98508C34.5025 3.70419 37.82 3.36906 41.0207 4.02205C44.2214 4.67502 47.1614 6.28682 49.4691 8.65348C51.7766 11.0202 53.3481 14.0356 53.9846 17.3184C54.6213 20.6012 54.2946 24.0038 53.0457 27.0961C51.797 30.1884 49.6821 32.8315 46.9686 34.6909C44.6728 36.2642 42.0357 37.2169 39.3017 37.4729ZM28.6517 28.3108C24.6286 28.2298 21.3822 24.8999 21.3033 20.7738H24.1407C26.3791 21.2971 28.1413 23.1042 28.6517 25.4001V28.3108ZM28.9517 28.3108C32.9747 28.2298 36.2213 24.8999 36.3002 20.7738H33.4628C31.2241 21.2971 29.462 23.1045 28.9517 25.4006V28.3108ZM36.3002 20.4661C36.2213 16.3399 32.9747 13.0101 28.9517 12.9291V15.8392C29.462 18.1352 31.224 19.9426 33.4624 20.4661H36.3002ZM28.6517 12.9291C24.6288 13.0101 21.3822 16.3399 21.3033 20.4661H24.1412C26.3794 19.9426 28.1414 18.1355 28.6517 15.8398V12.9291Z"/></symbol>
+    <symbol id="logo" viewBox="0 0 600 513"><path fill="currentColor" d="M445.237 0.00033551C424.91 -0.0347431 404.777 3.89304 385.996 11.5576C367.216 19.2221 350.159 30.4719 335.808 44.6594L153.391 224.398L116.915 188.45C111.983 183.761 108.048 178.15 105.341 171.946C102.633 165.741 101.207 159.067 101.145 152.314C101.084 145.56 102.388 138.862 104.983 132.611C107.577 126.359 111.409 120.68 116.255 115.904C121.101 111.128 126.864 107.352 133.207 104.795C139.55 102.239 146.347 100.953 153.2 101.014C160.052 101.074 166.825 102.48 173.12 105.148C179.416 107.816 185.109 111.694 189.867 116.555L262.856 44.6594C233.71 16.6424 194.537 1.07109 153.824 1.31914C113.11 1.56719 74.1349 17.6146 45.3431 45.9846C16.5513 74.3546 0.261527 112.762 0.0031216 152.886C-0.255283 193.01 15.5385 231.618 43.9626 260.346L153.391 368.189L511.948 14.8274C491.12 5.01981 468.32 -0.0474973 445.237 0.00033551Z"/><path fill="currentColor" d="M584.9 86.7579L445.237 224.433L408.76 188.45L335.808 260.345L372.284 296.293L226.379 440.084L299.332 512.015L554.665 260.381C577.296 238.07 592.355 209.395 597.769 178.303C603.183 147.21 598.687 115.228 584.9 86.7579Z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z"/></symbol>
+    <symbol id="i-coffee" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Zm12 1.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5c0 1 1 1.5 1 2.5M12 3.5c0 1 1 1.5 1 2.5M3 21h14"/></symbol>
+    <symbol id="i-bug" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M8 10a4 4 0 0 1 8 0v4a4 4 0 0 1-8 0v-4Zm4-4V4m0 6v8M8 12H4m16 0h-4M8 16.5l-3 1.5m14 0-3-1.5M8 8.5 5.5 6.5m13 0L16 8.5"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 48 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M46 12H4m0 0 8-8M4 12l8 8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="1.75"/><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/></symbol>
+    <symbol id="i-puzzle" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 0 1-.657.643 48.39 48.39 0 0 1-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 0 1-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 0 0-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 0 1-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 0 0 .657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 0 1-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.4.604-.4.959v0c0 .333.277.599.61.58a48.1 48.1 0 0 0 5.427-.63 48.05 48.05 0 0 0 .582-4.717.532.532 0 0 0-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.96.401v0a.656.656 0 0 0 .658-.663 48.422 48.422 0 0 0-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 0 1-.61-.58v0Z"/></symbol>
+    <symbol id="i-git" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M6 3.75v10.5M6 14.25a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm12-7.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 0c0 5.25-12 2.25-12 7.5"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="m6.75 7.5 3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25Z"/></symbol>
+    <symbol id="i-atom" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/></g><circle cx="12" cy="12" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="i-vue" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M2.5 4h4.5L12 12.5 17 4h4.5L12 20.5 2.5 4Zm5.5 0L12 11l4-7"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M3 10.5c1.5-3 3.5-4.2 6-3.3 1.6.6 2.3 2.1 4.2 2.1 2.1 0 3.4-1 4.3-3.3M3 17.25c1.5-3 3.5-4.2 6-3.3 1.6.6 2.3 2.1 4.2 2.1 2.1 0 3.4-1 4.3-3.3"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></symbol>
+    <symbol id="i-helm" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M12 2.75 19.6 6.4l1.9 8.2-5.3 6.6H7.8l-5.3-6.6 1.9-8.2L12 2.75ZM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm0-3.5V9m0 6v3.5M6.5 9.3 9.4 10.6m5.2 2.8 2.9 1.3M17.5 9.3l-2.9 1.3m-5.2 2.8-2.9 1.3"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/></symbol>
+    <symbol id="i-stack" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M6 6.878V6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 0 0 4.5 9v.878m13.5-3A2.25 2.25 0 0 1 19.5 9v.878m0 0a2.246 2.246 0 0 0-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0 1 21 12v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6c0-.98.626-1.813 1.5-2.122"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></symbol>
+    <symbol id="fa-discord" viewBox="0 0 640 512"><path fill="currentColor" d="M524.5 69.8a1.5 1.5 0 0 0-.8-.7A485.1 485.1 0 0 0 404.1 32a1.8 1.8 0 0 0-1.9.9 337.5 337.5 0 0 0-14.9 30.6 447.8 447.8 0 0 0-134.4 0 309.5 309.5 0 0 0-15.1-30.6 1.9 1.9 0 0 0-1.9-.9 483.7 483.7 0 0 0-119.8 37.1 1.7 1.7 0 0 0-.8.7C39.1 183.7 18.2 294.7 28.4 404.4a2 2 0 0 0 .8 1.4A487.7 487.7 0 0 0 176 479.9a1.9 1.9 0 0 0 2.1-.7A348.2 348.2 0 0 0 208.1 430.4a1.9 1.9 0 0 0-1-2.6 321.2 321.2 0 0 1-45.9-21.9 1.9 1.9 0 0 1-.2-3.1c3.1-2.3 6.2-4.7 9.1-7.1a1.8 1.8 0 0 1 1.9-.3c96.2 43.9 200.4 43.9 295.5 0a1.8 1.8 0 0 1 1.9.2c2.9 2.4 6 4.9 9.1 7.2a1.9 1.9 0 0 1-.2 3.1 301.4 301.4 0 0 1-45.9 21.8 1.9 1.9 0 0 0-1 2.6 391.1 391.1 0 0 0 30 48.8 1.9 1.9 0 0 0 2.1.7A486 486 0 0 0 610.7 405.7a1.9 1.9 0 0 0 .8-1.4C623.7 277.6 590.9 167.5 524.5 69.8ZM222.5 337.6c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.4 59.2-52.8 59.2Zm195.4 0c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.2 59.2-52.8 59.2Z"/></symbol>
+    <symbol id="fa-github" viewBox="0 0 496 512"><path fill="currentColor" d="M248 8C111 8 0 119 0 256c0 109.7 71 202.7 169.6 235.5 12.4 2.3 16.9-5.4 16.9-12v-42.2c-69 15-83.6-29.6-83.6-29.6-11.3-28.7-27.6-36.3-27.6-36.3-22.5-15.4 1.7-15.1 1.7-15.1 24.9 1.8 38 25.6 38 25.6 22.1 37.9 58 27 72.1 20.6 2.2-16 8.6-27 15.7-33.2-55.1-6.3-113-27.6-113-122.6 0-27.1 9.7-49.2 25.6-66.6-2.6-6.3-11.1-31.5 2.4-65.7 0 0 20.8-6.7 68.2 25.4a236 236 0 0 1 124.2 0c47.4-32.1 68.2-25.4 68.2-25.4 13.5 34.2 5 59.4 2.4 65.7 15.9 17.4 25.6 39.5 25.6 66.6 0 95.3-58 116.2-113.3 122.4 8.9 7.7 16.9 22.8 16.9 46v68.3c0 6.6 4.4 14.4 17 12C425 458.6 496 365.6 496 256 496 119 385 8 248 8Z"/></symbol>
+    <symbol id="fa-twitch" viewBox="0 0 512 512"><path fill="currentColor" d="M391.2 103.5h-38.7v109.7h38.7Zm-106.4-.5h-38.7v109.8h38.7ZM120.8 0 24 91.4v329.2h116.1V512l96.8-91.4h77.4L488.5 256V0Zm329 237.8-77.4 73.1h-77.4l-67.7 64v-64h-87.1V36.6h309.6Z"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#painel">Pular para o jogo</a>
+
+<header class="wrap top">
+  <span class="brandmark"><svg class="pm-logo" viewBox="0 0 254.69 42.2" role="img" aria-label="Purple Map"><g transform="translate(0, 0.6)"><path fill="var(--pm-mark)" fill-rule="evenodd" clip-rule="evenodd" d="M1.78611 12.9662C0.310192 16.6208 -0.075977 20.6421 0.676494 24.5218C1.42887 28.4014 3.28611 31.9651 6.01319 34.7621C8.74026 37.5591 12.2149 39.4639 15.9974 40.2356C19.7802 41.0074 23.701 40.6112 27.2642 39.0975C30.8272 37.5838 33.8728 35.0202 36.0154 31.7314C36.0725 31.6436 36.129 31.5555 36.1847 31.4669C36.224 31.4045 36.2631 31.3416 36.3018 31.2786V40.6199H37.8018C41.6585 40.6199 45.4287 39.4469 48.6353 37.2492C51.8422 35.0518 54.3415 31.9281 55.8173 28.2735C57.2933 24.6191 57.6795 20.5978 56.927 16.7181C56.1746 12.8385 54.3175 9.27482 51.5904 6.47782C48.8632 3.68072 45.3886 1.77595 41.6061 1.00428C37.8233 0.232513 33.9025 0.628585 30.3393 2.14235C26.7763 3.65612 23.7308 6.21959 21.5881 9.50853C21.4907 9.65822 21.3952 9.8092 21.3017 9.96123V0.619946H19.8017C15.945 0.619946 12.1749 1.79295 8.96815 3.99059C5.76142 6.18813 3.26204 9.31172 1.78611 12.9662ZM18.3018 20.6199V3.76692C15.5678 4.02289 12.9307 4.97561 10.6349 6.54889C7.92143 8.4084 5.80665 11.0515 4.55778 14.1437C3.30891 17.2361 2.98215 20.6386 3.61881 23.9215C4.25548 27.2042 5.82698 30.2196 8.13447 32.5864C10.4421 34.9531 13.3821 36.5648 16.5828 37.2178C19.7835 37.8708 23.101 37.5356 26.1161 36.2548C29.0099 35.0254 31.5003 32.9776 33.2989 30.3542C31.9358 31.0179 30.411 31.3892 28.8018 31.3892C23.0029 31.3892 18.3018 26.5675 18.3018 20.6199ZM39.3017 37.4729V20.6199C39.3017 14.6723 34.6006 9.8507 28.8018 9.8507C27.1925 9.8507 25.6678 10.222 24.3046 10.8857C26.1032 8.2622 28.5936 6.21442 31.4875 4.98508C34.5025 3.70419 37.82 3.36906 41.0207 4.02205C44.2214 4.67502 47.1614 6.28682 49.4691 8.65348C51.7766 11.0202 53.3481 14.0356 53.9846 17.3184C54.6213 20.6012 54.2946 24.0038 53.0457 27.0961C51.797 30.1884 49.6821 32.8315 46.9686 34.6909C44.6728 36.2642 42.0357 37.2169 39.3017 37.4729ZM28.6517 28.3108C24.6286 28.2298 21.3822 24.8999 21.3033 20.7738H24.1407C26.3791 21.2971 28.1413 23.1042 28.6517 25.4001V28.3108ZM28.9517 28.3108C32.9747 28.2298 36.2213 24.8999 36.3002 20.7738H33.4628C31.2241 21.2971 29.462 23.1045 28.9517 25.4006V28.3108ZM36.3002 20.4661C36.2213 16.3399 32.9747 13.0101 28.9517 12.9291V15.8392C29.462 18.1352 31.224 19.9426 33.4624 20.4661H36.3002ZM28.6517 12.9291C24.6288 13.0101 21.3822 16.3399 21.3033 20.4661H24.1412C26.3794 19.9426 28.1414 18.1355 28.6517 15.8398V12.9291Z"/></g><g transform="translate(64, 0.5)"><path fill="var(--pm-type)" d="M13.09 25.72L13.09 21.18L16.58 21.18L16.58 25.72L13.09 25.72ZM16.58 25.72L16.58 21.18Q18.31 21.18 19.55 20.88Q20.80 20.57 21.46 19.73Q22.13 18.88 22.13 17.26L22.13 17.26Q22.13 15.64 21.46 14.79Q20.80 13.950 19.55 13.64Q18.31 13.34 16.58 13.34L16.58 13.34L16.58 8.80Q19.86 8.80 22.33 9.63Q24.79 10.46 26.18 12.31Q27.56 14.16 27.56 17.26L27.56 17.26Q27.56 20.32 26.18 22.19Q24.79 24.06 22.33 24.89Q19.86 25.72 16.58 25.72L16.58 25.72ZM13.09 13.34L13.09 8.80L16.58 8.80L16.58 13.34L13.09 13.34ZM7.87 11.18L13.09 11.18L13.09 34L7.87 34L7.87 11.18ZM48.59 13.84L48.59 34L43.44 34L43.44 13.84L48.59 13.84ZM43.44 23.70L43.44 23.70L44.02 27.84Q44.02 28.78 43.75 29.93Q43.48 31.08 42.74 32.15Q42.00 33.21 40.63 33.89Q39.26 34.58 37.07 34.58L37.07 34.58Q35.12 34.58 33.61 33.78Q32.10 32.99 31.24 31.16Q30.37 29.32 30.37 26.26L30.37 26.26L30.37 13.84L35.48 13.84L35.48 25.79Q35.48 26.98 35.66 27.95Q35.84 28.92 36.49 29.52Q37.14 30.11 38.51 30.11L38.51 30.11Q39.59 30.11 40.74 29.50Q41.89 28.89 42.67 27.48Q43.44 26.08 43.44 23.70ZM51.90 34L51.90 13.84L57.05 13.84L57.05 34L51.90 34ZM57.05 24.14L57.05 24.14L56.51 20.43Q56.51 19.49 56.69 18.27Q56.87 17.04 57.53 15.91Q58.20 14.78 59.60 14.02Q61.01 13.26 63.42 13.26L63.42 13.26L63.42 18.30Q61.30 18.30 59.87 18.77Q58.45 19.24 57.75 20.48Q57.05 21.72 57.05 24.14ZM76.78 34.58L76.78 34.58Q74.69 34.58 73.28 33.84Q71.88 33.10 71.02 31.80L71.02 31.80L71.02 16.11Q71.95 14.74 73.36 14.00Q74.76 13.26 76.78 13.26L76.78 13.26Q79.66 13.26 81.67 14.63Q83.69 16.00 84.77 18.41Q85.85 20.82 85.85 23.96L85.85 23.96Q85.85 27.05 84.77 29.46Q83.69 31.88 81.67 33.23Q79.66 34.58 76.78 34.58ZM71.02 41.20L65.87 41.20L65.87 13.84L71.02 13.84L71.02 41.20ZM75.88 29.97L75.88 29.97Q77.46 29.97 78.50 29.16Q79.55 28.35 80.07 26.98Q80.59 25.61 80.59 23.96L80.59 23.96Q80.59 22.26 80.07 20.88Q79.55 19.49 78.50 18.68Q77.46 17.87 75.88 17.87L75.88 17.87Q74.22 17.87 73.14 18.68Q72.06 19.49 71.54 20.88Q71.02 22.26 71.02 23.96L71.02 23.96Q71.02 25.61 71.54 26.98Q72.06 28.35 73.14 29.16Q74.22 29.97 75.88 29.97ZM88.48 34L88.48 7.00L93.62 7.00L93.62 34L88.48 34ZM115.73 25.65L101.69 25.65L101.69 21.47L112.24 21.47L110.58 22.44Q110.76 21.40 110.38 20.34Q110.00 19.28 109.07 18.57Q108.13 17.87 106.55 17.87L106.55 17.87Q104.50 17.87 103.04 19.22Q101.58 20.57 101.69 23.27L101.69 23.27L96.25 23.27Q96.43 20.00 97.87 17.78Q99.31 15.57 101.58 14.42Q103.85 13.26 106.55 13.26L106.55 13.26Q108.60 13.26 110.44 14.09Q112.27 14.92 113.60 16.50Q114.94 18.09 115.55 20.39Q116.16 22.70 115.73 25.65L115.73 25.65ZM106.55 34.58L106.55 34.58Q103.74 34.58 101.56 33.46Q99.38 32.34 98.05 30.33Q96.72 28.31 96.36 25.65L96.36 25.65L101.69 25.65Q101.98 27.52 103.11 28.74Q104.24 29.97 106.55 29.97L106.55 29.97Q108.02 29.97 109.00 29.28Q109.97 28.60 110.36 27.59L110.36 27.59L115.80 27.59Q115.37 29.68 114.11 31.25Q112.85 32.81 110.92 33.69Q109.00 34.58 106.55 34.58ZM133.22 34L128.26 34L121.74 8.80L127.07 8.80L133.22 34ZM142.15 8.80L135.64 34L130.67 34L136.82 8.80L142.15 8.80ZM118.64 34L118.64 8.80L123.68 8.80L123.68 34L118.64 34ZM140.21 34L140.21 8.80L145.25 8.80L145.25 34L140.21 34ZM155.87 34.58L155.87 34.58Q153.89 34.58 152.36 33.84Q150.83 33.10 149.95 31.70Q149.06 30.29 149.06 28.28L149.06 28.28Q149.06 25.94 150.18 24.57Q151.30 23.20 153.11 22.52Q154.93 21.83 157.04 21.58Q159.14 21.33 161.12 21.29L161.12 21.29L161.12 25.68Q157.56 25.61 155.99 26.21Q154.43 26.80 154.43 28.13L154.43 28.13Q154.43 29.10 155.17 29.50Q155.90 29.90 156.88 29.90L156.88 29.90Q157.81 29.90 158.80 29.61Q159.79 29.32 160.46 28.49Q161.12 27.66 161.12 26.04L161.12 26.04L161.12 23.52L166.27 23.52L166.27 34L161.12 34L161.12 32.06Q160.30 33.21 158.87 33.89Q157.45 34.58 155.87 34.58ZM153.74 21.29L148.38 21.29Q148.38 19.24 149.46 17.40Q150.54 15.57 152.59 14.42Q154.64 13.26 157.56 13.26L157.56 13.26Q161.52 13.26 163.72 15.41Q165.91 17.55 166.24 21.29L166.24 21.29L161.12 21.29Q161.02 19.82 160.30 18.88Q159.58 17.94 157.56 17.94L157.56 17.94Q156.01 17.94 155.18 18.43Q154.36 18.92 154.05 19.69Q153.74 20.46 153.74 21.29L153.74 21.29ZM180.49 34.58L180.49 34.58Q178.40 34.58 177.00 33.84Q175.60 33.10 174.73 31.80L174.73 31.80L174.73 16.11Q175.67 14.74 177.07 14.00Q178.48 13.26 180.49 13.26L180.49 13.26Q183.37 13.26 185.39 14.63Q187.40 16.00 188.48 18.41Q189.56 20.82 189.56 23.96L189.56 23.96Q189.56 27.05 188.48 29.46Q187.40 31.88 185.39 33.23Q183.37 34.58 180.49 34.58ZM174.73 41.20L169.58 41.20L169.58 13.84L174.73 13.84L174.73 41.20ZM179.59 29.97L179.59 29.97Q181.18 29.97 182.22 29.16Q183.26 28.35 183.79 26.98Q184.31 25.61 184.31 23.96L184.31 23.96Q184.31 22.26 183.79 20.88Q183.26 19.49 182.22 18.68Q181.18 17.87 179.59 17.87L179.59 17.87Q177.94 17.87 176.86 18.68Q175.78 19.49 175.25 20.88Q174.73 22.26 174.73 23.96L174.73 23.96Q174.73 25.61 175.25 26.98Q175.78 28.35 176.86 29.16Q177.94 29.97 179.59 29.97Z"/></g></svg></span>
+  <nav aria-label="Seções">
+    <a href="#painel">Jogar</a>
+    <a href="#trilhas">Trilhas</a>
+    <a href="#regras">Regras</a>
+    <button type="button" class="theme-btn" id="theme-btn"><svg aria-hidden="true" focusable="false"><use href="#i-moon"/></svg><span>Tema escuro</span></button>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap board-wrap">
+    <ol class="board" id="board" aria-label="Tabuleiro do Purple Map, 36 casas em ordem de jogo">
+      <li class="panel" id="painel" aria-labelledby="game-title" tabindex="-1">
+        <div class="title-plate"><h1 id="game-title">Purple Map</h1></div>
+        <p class="tagline">Da comunidade para a comunidade. Role os dados, aprenda techs e <b>complete 3 trilhas</b> para virar referência.</p>
+        <dl class="stats">
+          <div><dt>XP</dt><dd class="xp" id="st-xp">500</dd></div>
+          <div><dt>Techs</dt><dd id="st-techs">0 de 18</dd></div>
+          <div><dt>Trilhas</dt><dd id="st-trails">0 de 3</dd></div>
+          <div><dt>Casa atual</dt><dd id="st-pos">Hello World</dd></div>
+        </dl>
+        <div class="playrow">
+          <div class="dice" id="dice" role="img" aria-label="Dados ainda não rolados"></div>
+          <div class="actions" id="actions"></div>
+        </div>
+        <div class="msg info" id="msg" role="status"></div>
+        <div>
+          <div class="loghead"><h2>Histórico</h2><button type="button" class="btn btn-outline btn-small" id="new-game">Novo jogo</button></div>
+          <ol class="log" id="log" aria-label="Últimas jogadas"></ol>
+        </div>
+      </li>
+    </ol>
+  </div>
+
+  <section class="info" id="trilhas" aria-labelledby="trilhas-title">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-label">trilhas</div>
+        <div><h2 id="trilhas-title">Seis trilhas, dezoito techs</h2><p>Cada cor do tabuleiro é uma trilha. Aprenda as três techs de uma trilha para completá-la: o rendimento dela dobra. Complete três trilhas para vencer.</p></div>
+      </div>
+      <div class="trails" id="trails"></div>
+    </div>
+  </section>
+
+  <section class="info" id="regras" aria-labelledby="regras-title">
+    <div class="wrap">
+      <div class="sec-head">
+        <div class="sec-label">regras</div>
+        <div><h2 id="regras-title">Como jogar</h2><p>Você começa com 500 XP no Hello World e anda no sentido da seta. Não há tempo limite: jogue no seu ritmo, o progresso fica salvo neste navegador.</p></div>
+      </div>
+      <div class="rules">
+        <div class="rule"><svg aria-hidden="true" focusable="false"><use href="#i-code"/></svg><div><b>Casas de tech</b><p>Pague o custo em XP para aprender. Toda vez que cair numa tech que já aprendeu, ganha 25% do custo; com a trilha completa, 50%.</p></div></div>
+        <div class="rule"><svg aria-hidden="true" focusable="false"><use href="#fa-discord"/></svg><div><b>Canais</b><p>Discord, Twitch, GitHub e DEV custam 200 XP. Rendem 25 XP com um canal, 50 com dois, 100 com três e 200 com os quatro.</p></div></div>
+        <div class="rule"><svg aria-hidden="true" focusable="false"><use href="#i-coffee"/></svg><div><b>Café e Wi-Fi</b><p>Custam 150 XP. Rendem 4 vezes o valor dos dados, ou 10 vezes se você tiver os dois.</p></div></div>
+        <div class="rule"><svg aria-hidden="true" focusable="false"><use href="#i-users"/></svg><div><b>Comunidade e Issue</b><p>Tire um card. Comunidade costuma ajudar; Issue é sorte ou revés.</p></div></div>
+        <div class="rule"><svg aria-hidden="true" focusable="false"><use href="#i-search"/></svg><div><b>Code Review</b><p>Cair em Deploy na sexta, tirar o card errado ou três duplas seguidas manda você para o Code Review. Saia tirando uma dupla ou pagando 50 XP. Na terceira tentativa sem dupla, paga e sai.</p></div></div>
+        <div class="rule"><svg aria-hidden="true" focusable="false"><use href="#i-warn"/></svg><div><b>Fim de jogo</b><p>Passar pelo Hello World rende 100 XP. Se o XP ficar negativo, o jogo acaba. Complete três trilhas para vencer.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="mbar" id="mbar" role="region" aria-label="Ações rápidas do jogo" hidden>
+  <div class="mbar-info"><b id="mb-title">Purple Map</b><span id="mb-xp">500 XP</span></div>
+  <div class="actions" id="mb-actions"></div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>Purple Map · um tabuleiro da comunidade He4rt Developers</span>
+    <span><a href="https://claude.ai/artifact/GncyQWUq4rJhWobLuroKYR" target="_blank" rel="noopener">Design System</a> · <a href="https://claude.ai/artifact/JwKW1AgFDyvqsaKyjLviCS" target="_blank" rel="noopener">Versão acessível</a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  try { document.documentElement.lang = 'pt-BR'; } catch (e) {}
+
+  // ---- tema claro / escuro ----
+  var root = document.documentElement, themeBtn = document.getElementById('theme-btn');
+  function sysDark() { try { return matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; } }
+  function isDarkNow() { var t = root.getAttribute('data-theme'); return t ? t === 'dark' : sysDark(); }
+  function paintThemeBtn() {
+    var d = isDarkNow();
+    themeBtn.innerHTML = '<svg aria-hidden="true" focusable="false"><use href="#' + (d ? 'i-sun' : 'i-moon') + '"/></svg><span>' + (d ? 'Tema claro' : 'Tema escuro') + '</span>';
+    themeBtn.setAttribute('aria-label', d ? 'Mudar para o tema claro' : 'Mudar para o tema escuro');
+  }
+  try { var saved = localStorage.getItem('jornada-he4rt-tema'); if (saved === 'dark' || saved === 'light') root.setAttribute('data-theme', saved); } catch (e) {}
+  if (themeBtn) {
+    paintThemeBtn();
+    themeBtn.addEventListener('click', function () {
+      var next = isDarkNow() ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('jornada-he4rt-tema', next); } catch (e) {}
+      paintThemeBtn();
+    });
+    try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintThemeBtn); } catch (e) {}
+  }
+  var reduce = false;
+  try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  var G = [
+    { name: 'Fundamentos', abbr: 'BASE', color: '#e09f45', ink: '#09090a' },
+    { name: 'Front-end', abbr: 'FRONT', color: '#00b0a7', ink: '#09090a' },
+    { name: 'Interfaces', abbr: 'UI', color: '#f33b84', ink: '#09090a' },
+    { name: 'Back-end', abbr: 'BACK', color: '#00b37d', ink: '#09090a' },
+    { name: 'Infra', abbr: 'INFRA', color: '#ecc240', ink: '#09090a' },
+    { name: 'He4rt Stack', abbr: 'HE4RT', color: '#782bf1', ink: '#fdfdfd' }
+  ];
+  var SP = [
+    { n: 'Hello World', t: 'start' },
+    { n: 'Lógica', t: 'tech', g: 0, p: 60, ic: 'i-puzzle' },
+    { n: 'Comunidade', t: 'com' },
+    { n: 'Git', t: 'tech', g: 0, p: 60, ic: 'i-git' },
+    { n: 'Dívida técnica', t: 'tax', amt: 100 },
+    { n: 'Discord', t: 'canal', p: 200, icon: 'fa-discord' },
+    { n: 'Terminal', t: 'tech', g: 0, p: 80, ic: 'i-terminal' },
+    { n: 'Issue', t: 'issue' },
+    { n: 'HTML e CSS', t: 'tech', g: 1, p: 100, ic: 'i-code' },
+    { n: 'Code Review', t: 'review' },
+    { n: 'JavaScript', t: 'tech', g: 1, p: 100, ic: 'm:JS' },
+    { n: 'Café', t: 'util', p: 150, icon: 'i-coffee' },
+    { n: 'TypeScript', t: 'tech', g: 1, p: 120, ic: 'm:TS' },
+    { n: 'Comunidade', t: 'com' },
+    { n: 'Twitch', t: 'canal', p: 200, icon: 'fa-twitch' },
+    { n: 'React', t: 'tech', g: 2, p: 140, ic: 'i-atom' },
+    { n: 'Issue', t: 'issue' },
+    { n: 'Vue', t: 'tech', g: 2, p: 140, ic: 'i-vue' },
+    { n: 'Modo foco', t: 'focus' },
+    { n: 'Tailwind', t: 'tech', g: 2, p: 160, ic: 'i-wave' },
+    { n: 'Issue', t: 'issue' },
+    { n: 'PHP', t: 'tech', g: 3, p: 180, ic: 'm:PHP' },
+    { n: 'Python', t: 'tech', g: 3, p: 180, ic: 'm:PY' },
+    { n: 'GitHub', t: 'canal', p: 200, icon: 'fa-github' },
+    { n: 'Go', t: 'tech', g: 3, p: 200, ic: 'm:GO' },
+    { n: 'Wi-Fi', t: 'util', p: 150, icon: 'i-wifi' },
+    { n: 'Docker', t: 'tech', g: 4, p: 220, ic: 'i-cube' },
+    { n: 'Deploy na sexta', t: 'deploy' },
+    { n: 'Kubernetes', t: 'tech', g: 4, p: 220, ic: 'i-helm' },
+    { n: 'Comunidade', t: 'com' },
+    { n: 'Cloud', t: 'tech', g: 4, p: 240, ic: 'i-cloud' },
+    { n: 'DEV', t: 'canal', p: 200, icon: 'i-code' },
+    { n: 'Filament', t: 'tech', g: 5, p: 260, ic: 'i-grid' },
+    { n: 'Livewire', t: 'tech', g: 5, p: 260, ic: 'i-bolt' },
+    { n: 'Bug em produção', t: 'tax', amt: 75 },
+    { n: 'Laravel', t: 'tech', g: 5, p: 300, ic: 'i-stack' }
+  ];
+  var REVIEW = 9, START_XP = 500, PASS_XP = 100, WIN_TRAILS = 3;
+
+  var ISSUE = [
+    { t: 'Sua PR foi aprovada de primeira.', xp: 100 },
+    { t: 'Merge conflict em 47 arquivos.', xp: -50 },
+    { t: 'Esqueceu o .env no commit. Vá para o Code Review.', review: true },
+    { t: 'Faltou ler a documentação. Volte 3 casas.', back: 3 },
+    { t: 'O bug sumiu sozinho e ninguém sabe por quê.', xp: 20 },
+    { t: 'Avance até o canal mais próximo.', nearest: 'canal' },
+    { t: 'Avance até Laravel.', to: 35 },
+    { t: 'Rodou o projeto na primeira tentativa. Avance até Hello World.', to: 0 }
+  ];
+  var COM = [
+    { t: 'Mentoria da comunidade.', xp: 100 },
+    { t: 'Você respondeu dúvidas no canal de ajuda.', xp: 50 },
+    { t: 'Assistiu a live da He4rt até o fim.', xp: 30 },
+    { t: 'Hacktoberfest! Quatro PRs aceitas.', xp: 150 },
+    { t: 'Assinou mais um curso que não vai terminar.', xp: -60 },
+    { t: 'Palestrou num meetup.', xp: 80 },
+    { t: 'Pair programming com alguém que está começando.', xp: 40 },
+    { t: 'Alguém já tinha respondido sua dúvida no fórum. Avance até Hello World.', to: 0 }
+  ];
+
+  var KEY = 'jornada-he4rt-v1';
+  function fresh() { return { pos: 0, xp: START_XP, owned: [], review: 0, tries: 0, dbl: 0, dice: null, pending: null, over: null, log: [], turn: 0, msg: { tone: 'info', title: 'Bem-vindo ao Purple Map', text: 'Você está no Hello World com 500 XP. Role os dados para começar.' } }; }
+  var S;
+  try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+  if (!S || typeof S.pos !== 'number') S = fresh();
+  if (S.msg && /Jornada He4rt/.test(S.msg.title)) S.msg.title = 'Bem-vindo ao Purple Map';
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  // ---- posições no grid 10×10 ----
+  function cellPos(i) {
+    if (i === 0) return [10, 10];
+    if (i < 9) return [10, 10 - i];
+    if (i === 9) return [10, 1];
+    if (i < 18) return [19 - i, 1];
+    if (i === 18) return [1, 1];
+    if (i < 27) return [1, i - 17];
+    if (i === 27) return [1, 10];
+    return [i - 26, 10];
+  }
+  function techIcon(ic) {
+    if (ic.indexOf('m:') === 0) {
+      var t = ic.slice(2);
+      return '<svg class="s-icon" viewBox="0 0 28 28" aria-hidden="true" focusable="false"><rect x="2" y="4" width="24" height="20" rx="5" fill="none" stroke="currentColor" stroke-width="1.75"/><text x="14" y="18.2" text-anchor="middle" font-family="Fira Code, ui-monospace, monospace" font-size="' + (t.length > 2 ? 8.5 : 10) + '" font-weight="600" fill="currentColor">' + t + '</text></svg>';
+    }
+    return svg(ic);
+  }
+  function svg(id, cls) { return '<svg class="' + (cls || 's-icon') + '" aria-hidden="true" focusable="false"><use href="#' + id + '"/></svg>'; }
+  function owns(i) { return S.owned.indexOf(i) !== -1; }
+  function groupMembers(g) { var r = []; SP.forEach(function (s, i) { if (s.g === g && s.t === 'tech') r.push(i); }); return r; }
+  function groupDone(g) { return groupMembers(g).every(owns); }
+  function trailsDone() { var n = 0; G.forEach(function (_, g) { if (groupDone(g)) n++; }); return n; }
+  function count(t) { return S.owned.filter(function (i) { return SP[i].t === t; }).length; }
+  function buyable(s) { return s.t === 'tech' || s.t === 'canal' || s.t === 'util'; }
+
+  function describe(i) {
+    var s = SP[i], d = (i + 1) + '. ' + s.n;
+    if (s.t === 'tech') d += ', trilha ' + G[s.g].name + ', ' + s.p + ' XP' + (owns(i) ? ', aprendida' : '');
+    else if (buyable(s)) d += ', ' + (s.t === 'canal' ? 'canal' : 'serviço') + ', ' + s.p + ' XP' + (owns(i) ? ', sua' : '');
+    else if (s.t === 'tax') d += ', perde ' + s.amt + ' XP';
+    else if (s.t === 'com') d += ', tire um card de Comunidade';
+    else if (s.t === 'issue') d += ', tire um card de Issue';
+    else if (s.t === 'start') d += ', início, ganhe ' + PASS_XP + ' XP ao passar';
+    else if (s.t === 'review') d += ', só olhando ou em review';
+    else if (s.t === 'deploy') d += ', vá para o Code Review';
+    else if (s.t === 'focus') d += ', descanso';
+    if (i === S.pos) d += '. Você está aqui';
+    return d;
+  }
+
+  function spaceInner(i) {
+    var s = SP[i], h = '';
+    if (s.t === 'tech') {
+      var g = G[s.g];
+      h += '<span class="tab" style="background:' + g.color + ';color:' + g.ink + '" aria-hidden="true">' + g.abbr + '</span>';
+      h += techIcon(s.ic) + '<span class="s-text"><span class="s-name">' + s.n + '</span><span class="s-group">Trilha ' + g.name + '</span>' +
+        '<span class="s-price">' + s.p + ' XP</span></span>';
+      if (owns(i)) h += '<span class="owned-mark" aria-hidden="true">' + svg('i-check', '') + '</span>';
+    } else if (s.t === 'start') {
+      h += '<span class="hello">print("Hello, World!")</span><span class="s-name">Hello World</span><span class="s-sub">+' + PASS_XP + ' XP ao passar</span>' + svg('i-arrow-left', 'arrow-go');
+    } else if (s.t === 'review') {
+      h += '<span class="review-split"><span class="s-sub">Só<br>olhando</span><span class="review-box">' + svg('i-search', '') + 'EM REVIEW</span></span><span class="s-text"><span class="s-name">Code Review</span><span class="s-group">Saia com uma dupla ou 50 XP</span></span>';
+    } else if (s.t === 'focus') {
+      h += svg('i-sparkles', 's-icon big') + '<span class="s-text"><span class="s-name">Modo foco</span><span class="s-sub">Nada acontece. Respira.</span></span>';
+    } else if (s.t === 'deploy') {
+      h += svg('i-rocket', 's-icon big') + '<span class="s-text"><span class="s-name">Deploy na sexta</span><span class="s-sub">Vá para o Code Review</span></span>';
+    } else {
+      h += '<span class="tab tab-neutral" aria-hidden="true">' + (s.t === 'canal' ? 'CANAL' : s.t === 'util' ? 'SERVIÇO' : s.t === 'tax' ? 'IMPOSTO' : 'CARD') + '</span>';
+      var icon = s.t === 'com' ? svg('i-users') : s.t === 'issue' ? '<span class="s-q" aria-hidden="true">?</span>' : s.t === 'tax' ? svg(s.amt === 75 ? 'i-bug' : 'i-warn') : svg(s.icon);
+      var sub = s.t === 'tax' ? '<span class="s-price">−' + s.amt + ' XP</span>' : buyable(s) ? '<span class="s-price">' + s.p + ' XP</span>' : '';
+      h += icon + '<span class="s-text"><span class="s-name">' + s.n + '</span>' +
+        (buyable(s) ? '<span class="s-group">' + (s.t === 'canal' ? 'Canal' : 'Serviço') + '</span>' : '') + sub + '</span>';
+      if (buyable(s) && owns(i)) h += '<span class="owned-mark" aria-hidden="true">' + svg('i-check', '') + '</span>';
+    }
+    if (i === S.pos) h += '<span class="token" aria-hidden="true"><svg><use href="#pm-mark"/></svg></span>';
+    return h;
+  }
+
+  var board = document.getElementById('board'), cells = [];
+  SP.forEach(function (s, i) {
+    var li = document.createElement('li');
+    var p = cellPos(i);
+    li.className = 'space' + (i % 9 === 0 ? ' corner' : (i > 9 && i < 18) || i > 27 ? ' side' : '');
+    li.style.gridArea = p[0] + ' / ' + p[1];
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('data-i', i);
+    li.appendChild(b);
+    board.appendChild(li);
+    cells.push(li);
+  });
+  function renderCell(i) {
+    var b = cells[i].firstChild;
+    cells[i].classList.toggle('here', i === S.pos);
+    b.innerHTML = spaceInner(i);
+    b.setAttribute('aria-label', describe(i));
+    if (i === S.pos) b.setAttribute('aria-current', 'location'); else b.removeAttribute('aria-current');
+  }
+  function renderBoard() { for (var i = 0; i < SP.length; i++) renderCell(i); }
+
+  // ---- painel ----
+  var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  function dieHTML(v) { if (!v) return '<span class="die die-empty" aria-hidden="true">?</span>'; var h = ''; for (var k = 0; k < 9; k++) h += '<i class="' + (v && PIPS[v].indexOf(k) !== -1 ? 'on' : '') + '"></i>'; return '<span class="die">' + h + '</span>'; }
+  var TONE_ICON = { ok: 'i-check', warn: 'i-warn', err: 'i-x', info: 'i-info' };
+
+  function renderDice() {
+    var dice = document.getElementById('dice');
+    dice.innerHTML = dieHTML(S.dice && S.dice[0]) + dieHTML(S.dice && S.dice[1]);
+    dice.setAttribute('aria-label', S.dice ? 'Dados: ' + S.dice[0] + ' e ' + S.dice[1] + ', total ' + (S.dice[0] + S.dice[1]) : 'Dados ainda não rolados');
+  }
+  function renderPanel() {
+    document.getElementById('st-xp').textContent = S.xp.toLocaleString('pt-BR') + ' XP';
+    document.getElementById('st-techs').textContent = count('tech') + ' de 18';
+    document.getElementById('st-trails').textContent = trailsDone() + ' de ' + WIN_TRAILS;
+    document.getElementById('st-pos').textContent = SP[S.pos].n + (S.review ? ' (em review)' : '');
+    renderDice();
+    var m = S.msg, el = document.getElementById('msg');
+    el.className = 'msg ' + m.tone;
+    el.innerHTML = '<svg aria-hidden="true" focusable="false"><use href="#' + TONE_ICON[m.tone] + '"/></svg><b>' + m.title + '</b><p>' + m.text + '</p>' +
+      (m.card ? '<div class="card-face"><span>' + m.card.deck + '</span>' + m.card.t + '</div>' : '');
+    renderActions();
+    document.getElementById('log').innerHTML = S.log.slice(-4).reverse().map(function (l) { return '<li><span>#' + l.n + '</span>' + l.t + '</li>'; }).join('') || '<li>Nenhuma jogada ainda.</li>';
+  }
+
+  var busy = false;
+  function renderActions() {
+    var h = '';
+    if (S.over) {
+      h = '<button type="button" class="btn btn-solid" data-act="restart">' + svg('i-sparkles', '') + 'Jogar de novo</button>';
+    } else if (S.pending) {
+      var s = SP[S.pending], verb = s.t === 'tech' ? 'Aprender' : s.t === 'canal' ? 'Seguir' : 'Garantir';
+      h = '<button type="button" class="btn btn-solid" data-act="buy"' + (S.xp < s.p ? ' disabled' : '') + '>' + verb + ' ' + s.n + ' · ' + s.p + ' XP</button>' +
+          '<button type="button" class="btn btn-outline" data-act="skip">Agora não</button>';
+    } else {
+      h = '<button type="button" class="btn btn-solid" data-act="roll"' + (busy ? ' disabled' : '') + '>' + svg('i-dice', '') + (S.review ? 'Tentar uma dupla' : 'Rolar dados') + '</button>';
+      if (S.review) h += '<button type="button" class="btn btn-outline" data-act="pay"' + (busy ? ' disabled' : '') + '>Pedir review urgente · 50 XP</button>';
+    }
+    document.getElementById('actions').innerHTML = h;
+    document.getElementById('mb-actions').innerHTML = h.replace(/ · /g, ' · ');
+    document.getElementById('mb-title').textContent = S.msg.title;
+    document.getElementById('mb-xp').textContent = S.xp.toLocaleString('pt-BR') + ' XP · ' + SP[S.pos].n;
+  }
+
+  function say(tone, title, text, card) { S.msg = { tone: tone, title: title, text: text, card: card || null }; }
+  function log(t) { S.log.push({ n: S.turn, t: t }); if (S.log.length > 30) S.log.shift(); }
+  function render() { renderBoard(); renderPanel(); save(); }
+
+  var lastBox = 'actions';
+  function focusMain() {
+    var b = document.querySelector('#' + lastBox + ' .btn:not([disabled])');
+    if (b) { try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); } }
+    followToken();
+  }
+  var mbar = document.getElementById('mbar'), mbarOn = false;
+  function followToken() {
+    var c = cells[S.pos];
+    if (!c || !c.getBoundingClientRect) return;
+    var r = c.getBoundingClientRect(), vh = window.innerHeight || 800;
+    var bar = mbarOn ? (mbar.offsetHeight || 0) : 0;
+    var visTop = 72, visBottom = vh - bar - 16;
+    if (r.top >= visTop && r.bottom <= visBottom) return;
+    var target = window.pageYOffset + r.top - (visTop + (visBottom - visTop) / 2) + r.height / 2;
+    try { window.scrollTo({ top: Math.max(0, target), behavior: reduce ? 'auto' : 'smooth' }); } catch (e) { window.scrollTo(0, Math.max(0, target)); }
+  }
+  try {
+    new IntersectionObserver(function (en) {
+      var narrow = matchMedia('(max-width: 759px)').matches;
+      mbarOn = narrow && !en[0].isIntersecting;
+      mbar.hidden = !mbarOn;
+      document.body.classList.toggle('has-mbar', mbarOn);
+    }).observe(document.getElementById('actions'));
+  } catch (e) {}
+
+  // ---- movimento ----
+  function walk(steps, done) {
+    var left = steps;
+    followToken();
+    function step() {
+      var prev = S.pos;
+      S.pos = (S.pos + 1) % SP.length;
+      if (S.pos === 0) { S.xp += PASS_XP; S.passed = true; }
+      renderCell(prev); renderCell(S.pos);
+      followToken();
+      left--;
+      if (left > 0) setTimeout(step, 240); else done();
+    }
+    if (reduce) {
+      var from = S.pos;
+      S.pos = (S.pos + steps) % SP.length;
+      if (S.pos < from || from + steps >= SP.length) { S.xp += PASS_XP; S.passed = true; }
+      done();
+    } else step();
+  }
+  function goReview(reason) {
+    S.pos = REVIEW; S.review = 1; S.tries = 0; S.dbl = 0;
+    say('err', 'Vá para o Code Review', reason + ' Para sair, tire uma dupla ou pague 50 XP.');
+    log(reason + ' Foi para o Code Review.');
+  }
+
+  function rent(i, total) {
+    var s = SP[i];
+    if (s.t === 'tech') return Math.round(s.p * (groupDone(s.g) ? .5 : .25));
+    if (s.t === 'canal') return 25 * Math.pow(2, count('canal') - 1);
+    return total * (count('util') === 2 ? 10 : 4);
+  }
+
+  function land(total, prefix) {
+    var i = S.pos, s = SP[i], pre = prefix || '';
+    if (S.passed) { pre += 'Passou pelo Hello World: +' + PASS_XP + ' XP. '; S.passed = false; }
+    if (buyable(s)) {
+      if (owns(i)) {
+        var r = rent(i, total); S.xp += r;
+        var t = s.t === 'tech' ? 'Você usou ' + s.n + ' num projeto' : s.t === 'canal' ? 'Seu conteúdo no ' + s.n + ' rendeu' : s.n + ' turbinou seu estudo';
+        say('ok', s.n + ': +' + r + ' XP', pre + t + '.'); log(s.n + ': +' + r + ' XP.');
+      } else {
+        S.pending = i;
+        var group = s.t === 'tech' ? ' Trilha ' + G[s.g].name + '.' : '';
+        if (S.xp < s.p) say('warn', s.n + ' custa ' + s.p + ' XP', pre + 'Você tem ' + S.xp + ' XP, não dá para pegar agora.' + group);
+        else say('info', s.n + ' está disponível', pre + 'Custa ' + s.p + ' XP.' + group + ' Quer pegar?');
+        log('Caiu em ' + s.n + '.');
+      }
+    } else if (s.t === 'tax') {
+      S.xp -= s.amt;
+      say('err', s.n + ': −' + s.amt + ' XP', pre + (s.amt === 100 ? 'Hora de refatorar aquele código antigo.' : 'Rollback, hotfix e café até tarde.'));
+      log(s.n + ': −' + s.amt + ' XP.');
+    } else if (s.t === 'com' || s.t === 'issue') {
+      var deck = s.t === 'com' ? COM : ISSUE, c = deck[Math.floor(Math.random() * deck.length)], card = { deck: s.t === 'com' ? 'COMUNIDADE' : 'ISSUE', t: c.t };
+      if (c.review) { goReview(c.t); S.msg.card = card; return; }
+      if (typeof c.xp === 'number') {
+        S.xp += c.xp;
+        say(c.xp >= 0 ? 'ok' : 'err', card.deck === 'ISSUE' ? 'Issue aberta' : 'Card de Comunidade', pre + (c.xp >= 0 ? '+' : '−') + Math.abs(c.xp) + ' XP.', card);
+        log(card.deck === 'ISSUE' ? 'Issue: ' : 'Comunidade: '); S.log[S.log.length - 1].t += (c.xp >= 0 ? '+' : '−') + Math.abs(c.xp) + ' XP.';
+        return;
+      }
+      var target;
+      if (c.back) target = (S.pos - c.back + SP.length) % SP.length;
+      else if (typeof c.to === 'number') target = c.to;
+      else { target = S.pos; do { target = (target + 1) % SP.length; } while (SP[target].t !== 'canal'); }
+      if (!c.back && target <= S.pos) { S.xp += PASS_XP; pre += 'Passou pelo Hello World: +' + PASS_XP + ' XP. '; }
+      S.pos = target;
+      log((card.deck === 'ISSUE' ? 'Issue' : 'Comunidade') + ': foi para ' + SP[target].n + '.');
+      land(total, pre + card.deck.charAt(0) + card.deck.slice(1).toLowerCase() + ': ' + c.t + ' ');
+      S.msg.card = card;
+      return;
+    } else if (s.t === 'deploy') {
+      goReview('Deploy na sexta deu ruim.');
+    } else if (s.t === 'review') {
+      say('info', 'Code Review', pre + 'Só passando para olhar o review dos outros.'); log('Visitou o Code Review.');
+    } else if (s.t === 'focus') {
+      say('info', 'Modo foco', pre + 'Nada acontece. Respira e segue.'); log('Modo foco.');
+    } else if (s.t === 'start') {
+      say('ok', 'Hello World', pre || 'De volta ao começo.'); log('Hello World.');
+    }
+  }
+
+  function checkEnd() {
+    if (S.xp < 0) { S.over = 'lose'; S.pending = null; say('err', 'Fim de jogo', 'Seu XP ficou negativo (' + S.xp + ' XP). Comece uma nova jornada.'); log('Fim de jogo.'); }
+    else if (trailsDone() >= WIN_TRAILS) { S.over = 'win'; S.pending = null; say('ok', 'Você virou referência na comunidade', 'Completou ' + WIN_TRAILS + ' trilhas em ' + S.turn + ' jogadas com ' + S.xp + ' XP.'); log('Vitória!'); }
+  }
+
+  function finish(total, extra) {
+    land(total, extra);
+    checkEnd();
+    busy = false;
+    render();
+    focusMain();
+  }
+
+  function roll() {
+    if (busy || S.over || S.pending) return;
+    busy = true; S.turn++;
+    var d1 = 1 + Math.floor(Math.random() * 6), d2 = 1 + Math.floor(Math.random() * 6), total = d1 + d2, dbl = d1 === d2;
+    S.dice = [d1, d2];
+    renderDice();
+    if (!reduce) [].forEach.call(document.querySelectorAll('.die'), function (d) { d.classList.remove('rolling'); void d.offsetWidth; d.classList.add('rolling'); });
+    var head = 'Tirou ' + d1 + ' e ' + d2 + '. ';
+    if (S.review) {
+      if (dbl) { S.review = 0; S.tries = 0; log('Dupla! Saiu do Code Review.'); walk(total, function () { finish(total, head + 'Dupla! Saiu do review e andou ' + total + ' casas. '); }); return; }
+      S.tries++;
+      if (S.tries >= 3) { S.xp -= 50; S.review = 0; S.tries = 0; log('Pagou 50 XP e saiu do review.'); walk(total, function () { finish(total, head + 'Terceira tentativa: pagou 50 XP, saiu e andou ' + total + ' casas. '); }); return; }
+      say('warn', 'Ainda em review', head + 'Sem dupla. Tentativa ' + S.tries + ' de 3.'); log('Sem dupla no review (' + S.tries + '/3).');
+      busy = false; render(); focusMain(); return;
+    }
+    if (dbl) { S.dbl++; if (S.dbl >= 3) { goReview('Três duplas seguidas: alguém achou suspeito.'); checkEnd(); busy = false; render(); focusMain(); return; } } else S.dbl = 0;
+    walk(total, function () { finish(total, head + (dbl ? 'Dupla! ' : '')); });
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (b) {
+      lastBox = b.closest('#mb-actions') ? 'mb-actions' : 'actions';
+      var act = b.getAttribute('data-act');
+      if (act === 'roll') roll();
+      else if (act === 'buy' && S.pending !== null) {
+        var i = S.pending, s = SP[i];
+        if (S.xp >= s.p) {
+          S.xp -= s.p; S.owned.push(i); S.pending = null;
+          var extra = s.t === 'tech' && groupDone(s.g) ? ' Trilha ' + G[s.g].name + ' completa: o rendimento dela dobrou.' : '';
+          say('ok', (s.t === 'tech' ? 'Aprendeu ' : 'Agora é seu: ') + s.n, '−' + s.p + ' XP.' + extra);
+          log((s.t === 'tech' ? 'Aprendeu ' : 'Pegou ') + s.n + ' (−' + s.p + ' XP).' + (extra ? ' Trilha completa.' : ''));
+          checkEnd(); render(); focusMain();
+        }
+      } else if (act === 'skip') { S.pending = null; say('info', 'Fica para depois', 'Role os dados para continuar.'); render(); focusMain(); }
+      else if (act === 'pay') { S.xp -= 50; S.review = 0; S.tries = 0; say('ok', 'Review aprovado', 'Pagou 50 XP. Role os dados para seguir.'); log('Pagou 50 XP pelo review urgente.'); checkEnd(); render(); focusMain(); }
+      else if (act === 'restart') { S = fresh(); render(); focusMain(); }
+      return;
+    }
+    var c = e.target.closest('.space > button');
+    if (c && !busy) {
+      var i = +c.getAttribute('data-i'), s = SP[i];
+      if (S.pending === null && !S.over) { say('info', 'Casa ' + (i + 1) + ': ' + s.n, describe(i).replace(/^\d+\. [^,]+,? ?/, '').replace(/^./, function (x) { return x.toUpperCase(); }) + '.'); renderPanel(); }
+    }
+  });
+  document.getElementById('new-game').addEventListener('click', function () { S = fresh(); render(); focusMain(); });
+
+  // legenda das trilhas
+  document.getElementById('trails').innerHTML = G.map(function (g, gi) {
+    var m = groupMembers(gi).map(function (i) { return SP[i].n + ' (' + SP[i].p + ')'; }).join(', ');
+    return '<div class="trail"><span class="bar" style="background:' + g.color + ';color:' + g.ink + '">' + g.abbr + '</span><div><b>' + g.name + '</b><p>' + m + '</p></div></div>';
+  }).join('');
+
+  render();
+})();
+</script>
+</body>
+</html>
